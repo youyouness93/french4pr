@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /free-assessment/thank-you/
+
+Sitemap: https://french4pr.com/sitemap.xml
