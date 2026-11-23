@@ -27,6 +27,10 @@ CONFIG = {
     "teacher_name": "[Teacher's first name]",
     "calendly_url": "",                          # e.g. https://calendly.com/french4pr/free-assessment
     "form_endpoint": "https://formsubmit.co/ajax/pr4french@gmail.com",  # FormSubmit: forwards each form to this inbox
+    # Member area (Supabase → Project Settings → API). The anon/publishable key is public by design:
+    # the database only lets visitors ADD an assessment request, never read anything.
+    "supabase_url": "",
+    "supabase_anon_key": "",
     "ga4_id": "",                                # e.g. G-XXXXXXXXXX
     "meta_pixel_id": "",                         # e.g. 123456789012345
     "assessment_format": "a 20-minute video call",
@@ -297,7 +301,8 @@ def page(path, title, desc, body, schema=None, noindex=False, preload=None):
     ld = json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False)
     pre = f'<link rel="preload" as="image" href="{preload[0]}" imagesrcset="{preload[1]}" imagesizes="{preload[2]}" fetchpriority="high">' if preload else ""
     robots = "noindex, follow" if noindex else "index, follow, max-image-preview:large"
-    cfg = json.dumps({"calendlyUrl": C["calendly_url"], "formEndpoint": C["form_endpoint"]})
+    cfg = json.dumps({"calendlyUrl": C["calendly_url"], "formEndpoint": C["form_endpoint"],
+                      "supabaseUrl": C["supabase_url"], "supabaseKey": C["supabase_anon_key"]})
     return f'''<!doctype html>
 <html lang="en-CA">
 <head>

@@ -77,11 +77,36 @@
       btn.disabled = true; btn.textContent = 'Sending…';
       var data = new FormData(form);
       var done = function () { track('generate_lead', { form: 'free_assessment' }, 'Lead'); openCalendar(data); };
+      var sends = [];
+      // 1) Email notification (FormSubmit)
       if (CFG.formEndpoint && CFG.formEndpoint.indexOf('http') === 0) {
-        fetch(CFG.formEndpoint, { method: 'POST', body: toJSON(data), headers: { 'Content-Type': 'application/json', Accept: 'application/json' } })
-          .then(done).catch(done); // never block the booking step
-      } else { done(); }
+        sends.push(fetch(CFG.formEndpoint, { method: 'POST', body: toJSON(data), headers: { 'Content-Type': 'application/json', Accept: 'application/json' } }));
+      }
+      // 2) Member area database (Supabase): the request appears in the admin space
+      if (CFG.supabaseUrl && CFG.supabaseKey) sends.push(saveRequest(data));
+      // Never block the booking step, whatever happens to the requests
+      Promise.all(sends.map(function (p) { return p.catch(function () {}); })).then(done);
     });
+
+    function saveRequest(fd) {
+      var month = fd.get('permit_expiry');
+      var label = function (map, v) { return v ? (map[v] || v) : null; };
+      var row = {
+        full_name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'), city: fd.get('city'),
+        immigration_status: label({ 'work-permit': 'Work permit', pgwp: 'PGWP', 'study-permit': 'Study permit', other: 'Other' }, fd.get('status')),
+        permit_expiry: /^\d{4}-\d{2}$/.test(month || '') ? month + '-01' : null,
+        french_level: fd.get('level') || null,
+        preferred_format: label({ group: 'Group', private: 'Private', unsure: 'Not sure' }, fd.get('format')),
+        availability: fd.getAll('availability').map(function (v) { return label({ 'weekday-evenings': 'Weekday evenings', weekends: 'Weekends', daytime: 'Daytime' }, v); }),
+        source: label({ instagram: 'Instagram', facebook: 'Facebook', friend: 'A friend', google: 'Google', consultant: 'Immigration consultant', other: 'Other' }, fd.get('source')),
+        consent: fd.get('consent') === 'yes'
+      };
+      return fetch(CFG.supabaseUrl.replace(/\/$/, '') + '/rest/v1/assessment_requests', {
+        method: 'POST',
+        headers: { apikey: CFG.supabaseKey, Authorization: 'Bearer ' + CFG.supabaseKey, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(row)
+      });
+    }
 
     function openCalendar(data) {
       steps.forEach(function (s) { s.hidden = true; });
